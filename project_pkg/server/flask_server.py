@@ -10,7 +10,7 @@ def update_coordinates():
     x_coord = data.get('X')
     y_coord = data.get('Y')
 
-    print(f"Ricevute coordinate: X {x_coord}, Y {y_coord}")
+    print(f"Recieved coordinates: X {x_coord}, Y {y_coord}")
 
     # Move 20 meters to the right
     meters_to_shift = 20.0
