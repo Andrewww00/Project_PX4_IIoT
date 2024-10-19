@@ -1,36 +1,29 @@
+# IIoT project
+University of Messina A.Y. 2023/2024 | Industrial IoT
 
-# IIoT project 
 This project aims to control a simulated drone and make it react to external factors such as the presence of obstacles along its path.
-First, the drone is sent on a mission with GPS coordinates. When it encounters an obstacle, it switches to obstacle avoidance mode. After successfully avoiding the obstacle, the drone continues towards the mission point.
+First, the drone is sent on a mission with GPS coordinates. When it encounters an obstacle, it switches to offboard mode. After successfully avoiding the obstacle, the drone continues towards the mission point.
 
-## Setup
+In this repo, you'll find a guide to setting up the environment required to reproduce the proposed solution.
+
+To achieve the project's goal, the following tools are used: 
+* VM with Ubuntu 22.04
+* PX4-Autopilot
+* QGroundControl
+* ROS 2 Humble
+* MAVROS
 
 ### Install PX4-Autopilot
 
 To install the toolchain:
 ```
 git clone https://github.com/PX4/PX4-Autopilot.git --recursive
-```
-Run the ubuntu.sh with no arguments (in a bash shell) to install everything
-```
 bash ./PX4-Autopilot/Tools/setup/ubuntu.sh
 ```
 Restart the computer on completion.
 
 ### Install ROS2 Humble
 To install ROS2 Humble: [here](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html)
-
-### Install Dependencies
-Install Python dependencies with this code
-```
-pip3 install --user -U empy pyros-genmsg setuptools
-```
-And:
-```
-pip3 install kconfiglib
-pip install --user jsonschema
-pip install --user jinja2
-```
 
 ### Install MAVROS
 To install MAVROS run:
@@ -49,6 +42,24 @@ sudo apt install aptitude
 sudo aptitude install gazebo libgazebo11 libgazebo-dev
 ```
 
+### Install QGround Control
+To install QGC:
+First run this commands:
+```
+sudo usermod -a -G dialout $USER
+sudo apt-get remove modemmanager -y
+sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-gl -y
+sudo apt install libfuse2 -y
+sudo apt install libxcb-xinerama0 libxkbcommon-x11-0 libxcb-cursor-dev -y
+```
+Then download the AppImage from [here](https://docs.qgroundcontrol.com/master/en/qgc-user-guide/getting_started/download_and_install.html)
+
+Once downloaded, move the file to home directory and run:
+```
+chmod +x ./QGroundControl.AppImage
+./QGroundControl.AppImage
+```
+
 ### Create Folder and clone repository:
 Run the following command to create a workspace folder and a src folder.
 ```
@@ -57,13 +68,48 @@ cd ~/(folder_name)/src
 ```
 Now, clone the repository inside the src:
 ```
-git clone "https://github.com/Andrewww00/ros2_ws.git"
+git clone https://github.com/Andrewww00/Progetto_IIoT_provvisorio.git
 ```
-Once done, run the .sh file for setup the env:
+Install colcon to build the workspace:
 ```
-./setup_sys.sh
+sudo sh -c 'echo "deb [arch=amd64,arm64] http://repo.ros2.org/ubuntu/main `lsb_release -cs` main" > /etc/apt/sources.list.d/ros2-latest.list'
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+sudo apt update
+sudo apt install python3-colcon-common-extensions
+```
+Before building the workspace, add this lines to your .bashrc file. By using this you avoid sourceing the setup.bash of both ros2 distro and workspace everytime.
+```
+source /opt/ros/humble/setup.bash
+source ~/(folder_name)/install/setup.bash
+source /usr/share/colcon_argcomplete/hook/colcon_argcomplete.bash # This line enable autocomplition colcon commands by pressing tab key.
+```
+First, move to (folder_name) then build the workspace:
+```
+colcon build
+```
+
+Once done, you can use the setup_sys.sh file to setup the env:
+```
+cd
+chmod +x ~/(folder_name)/src/Progetto_IIoT_provvisorio/project_pkg/setup_sys.sh
+./(folder_name)/src/Progetto_IIoT_provvisorio/project_pkg/setup_sys.sh
 ```
 Then run the ros2 node to start the mission:
 ```
 ros2 run project_pkg mission
 ```
+
+# Flask version
+To run the flask version of the project, first navigate to the server folder and run the server script:
+```
+python3 flask_server.py
+```
+Then run the modified version of mission node:
+```
+ros2 run project_pkg mission_flask.py
+```
+
+
+Credits:
+* Longo Andrea
+* Musmeci Edoardo
