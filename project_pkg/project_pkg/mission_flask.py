@@ -20,7 +20,7 @@ class MissionModeNode(Node):
             depth=10
         )
 
-        self.get_logger().info("Nodo missione avviato!")
+        self.get_logger().info("Mission node started!")
 
         self.setpoint_timer = self.create_timer(
             0.1, self.publish_position_setpoint)
@@ -46,16 +46,16 @@ class MissionModeNode(Node):
         self.wp_push_client = self.create_client(
             WaypointPush, '/mavros/mission/push')
         while not self.wp_push_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Servizio /mavros/mission/push non disponibile, in attesa...')
+            self.get_logger().info('Service /mavros/mission/push not available, waiting...')
 
         self.set_mode_client = self.create_client(SetMode, '/mavros/set_mode')
         while not self.set_mode_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Servizio /mavros/set_mode non disponibile, in attesa...')
+            self.get_logger().info('Service /mavros/set_mode not available, waiting...')
 
         self.arming_client = self.create_client(
             CommandBool, '/mavros/cmd/arming')
 
-        # GPS coordinate
+        # GPS coordinates
         self.lat = 37.4144411
         self.lon = -121.9959840
         self.alt = 10.0
@@ -65,7 +65,7 @@ class MissionModeNode(Node):
         self.current_position = None
         self.reference_position = PoseStamped().pose.position
         self.obstacle_position = None
-        self.scostamento = 20.0
+        self.offset = 20.0
         self.count = 0
 
         self.send_mission(self.lat, self.lon, self.alt)
@@ -81,8 +81,6 @@ class MissionModeNode(Node):
         wp.x_lat = lat
         wp.y_long = lon
         wp.z_alt = alt
-
-        # Pushing the waypoint in MAVROS service
         wp_push_req = WaypointPush.Request()
         wp_push_req.start_index = 0
         wp_push_req.waypoints.append(wp)
@@ -104,7 +102,7 @@ class MissionModeNode(Node):
     def state_callback(self, msg):
         if msg.mode != self.current_state.mode:
             self.current_state = msg
-            self.get_logger().info(f"Stato attuale: {self.current_state.mode}")
+            self.get_logger().info(f"Current state: {self.current_state.mode}")
 
     def local_pos_callback(self, msg):
         self.current_position = msg.pose.position
@@ -117,31 +115,31 @@ class MissionModeNode(Node):
             return
 
         if self.found_obstacle():
-            self.get_logger().info("Ostacolo rilevato!")
+            self.get_logger().info("Obstacle detected!")
             self.reference_position = self.current_position
 
-            # Passa alla modalità OFFBOARD solo se non è già in modalità OFFBOARD
+            # Setting OFFBOARD 
             if self.current_state.mode != "OFFBOARD" :
                 self.change_mode("OFFBOARD")
 
-            # Invia una richiesta al server Flask per ottenere nuove coordinate
+            # Send a request to the Flask server to get new coordinates
             new_x, new_y = self.request_new_coordinates(
                 self.reference_position.x, self.reference_position.y)
 
-            # Crea un nuovo setpoint con le coordinate aggiornate
+            # Create a new setpoint with updated coordinates
             self.setpoint = PoseStamped()
             self.setpoint.pose.position.x = new_x
             self.setpoint.pose.position.y = new_y
             self.setpoint.pose.position.z = self.alt
             self.setpoint_pub.publish(self.setpoint)
         else:
-            # Continua a pubblicare il setpoint corrente per mantenere la modalità OFFBOARD
+            # Publishing for maintaining OFFBOARD mode
             if self.current_position is not None:
                 self.setpoint_pub.publish(self.setpoint)
 
-            # Controlla se il drone ha raggiunto il setpoint
+            # Check if the drone has reached the setpoint
             if self.reached_setpoint():
-                # Passa alla modalità AUTO.MISSION solo se non è già in modalità AUTO.MISSION
+                # Switch to AUTO.MISSION mode
                 if self.current_state.mode != "AUTO.MISSION":
                     self.change_mode("AUTO.MISSION")
 
@@ -155,7 +153,7 @@ class MissionModeNode(Node):
             return data["new_x"], data["new_y"]
         except Exception as e:
             self.get_logger().error(
-                f"Errore nel richiedere nuove coordinate: {e}")
+                f"Error in requesting new coordinates: {e}")
             return x, y
 
     def found_obstacle(self):
@@ -198,9 +196,9 @@ class MissionModeNode(Node):
         future = self.arming_client.call_async(req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() is not None and future.result().success:
-            self.get_logger().info('Drone armato con successo')
+            self.get_logger().info('Drone armed successfully')
         else:
-            self.get_logger().info('Impossibile armare il drone')
+            self.get_logger().info('Unable to arm the drone')
 
     def set_auto_mission_mode(self):
         set_mode_req = SetMode.Request()
@@ -208,12 +206,12 @@ class MissionModeNode(Node):
         future = self.set_mode_client.call_async(set_mode_req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() and future.result().mode_sent:
-            self.get_logger().info('Modalità AUTO.MISSION impostata con successo!')
+            self.get_logger().info('AUTO.MISSION mode set successfully!')
         else:
-            self.get_logger().error('Errore nell\'impostazione della modalità AUTO.MISSION.')
+            self.get_logger().error('Error setting AUTO.MISSION mode.')
 
     def change_mode(self, mode):
-        if self.set_mode_client.wait_for_service(timeout_sec=5.0):
+        if self set_mode_client.wait_for_service(timeout_sec=5.0):
             req = SetMode.Request()
             req.custom_mode = mode
             future = self.set_mode_client.call_async(req)
@@ -223,11 +221,11 @@ class MissionModeNode(Node):
         try:
             response = future.result()
             if response.mode_sent:
-                self.get_logger().info(f"Modalità impostata con successo!")
+                self.get_logger().info(f"Mode set successfully!")
             else:
-                self.get_logger().warn(f"Cambio modalità fallito!")
+                self.get_logger().warn(f"Mode change failed!")
         except Exception as e:
-            self.get_logger().error(f"Errore nel cambio modalità: {e}")
+            self.get_logger().error(f"Error in changing mode: {e}")
 
 
 def main(args=None):
