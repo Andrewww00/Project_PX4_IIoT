@@ -18,70 +18,59 @@ class MissionModeNode(Node):
             depth=10
         )
 
-        self.get_logger().info("Nodo missione avviato!")
+        self.get_logger().info("Mission node started!")
 
-        # Timer per pubblicare i setpoint di posizione a 10 Hz
         self.setpoint_timer = self.create_timer(
             0.1, self.publish_position_setpoint)
 
-        # Timer per pubblicare la posizione dell'ostacolo ogni 1 secondo
         self.obstacle_timer = self.create_timer(
             1.0, self.publish_obstacle_position)
 
-        # Publisher per setpoint di posizione sul topic /mavros/setpoint_position/local
         self.setpoint_pub = self.create_publisher(
             PoseStamped, '/mavros/setpoint_position/local', qos_profile)
 
-        # Publisher per la posizione dell'ostacolo
         self.obstacle_pub = self.create_publisher(
             PoseStamped, '/obstacle_position', qos_profile)
 
-        # Subscriber per ottenere la posizione attuale del drone
         self.local_pos_sub = self.create_subscription(
             PoseStamped, '/mavros/local_position/pose', self.local_pos_callback, qos_profile_sensor_data)
 
-        # Subscriber per lo stato del drone
         self.state_sub = self.create_subscription(
             State, '/mavros/state', self.state_callback, 10)
 
-        # Subscriber per ottenere la posizione dell'ostacolo
         self.obstacle_pos_sub = self.create_subscription(
             PoseStamped, '/obstacle_position', self.obstacle_pos_callback, qos_profile_sensor_data)
 
-        # Client per caricare i waypoint
         self.wp_push_client = self.create_client(
             WaypointPush, '/mavros/mission/push')
         while not self.wp_push_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Servizio /mavros/mission/push non disponibile, in attesa...')
+            self.get_logger().info('Service /mavros/mission/push not available, waiting...')
 
-        # Client per impostare la modalità del drone
         self.set_mode_client = self.create_client(SetMode, '/mavros/set_mode')
         while not self.set_mode_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Servizio /mavros/set_mode non disponibile, in attesa...')
+            self.get_logger().info('Service /mavros/set_mode not available, waiting...')
 
-        # Client per il servizio di arming
         self.arming_client = self.create_client(
             CommandBool, '/mavros/cmd/arming')
 
-        # Coordinate GPS della missione
-
-        self.lat = 37.4144411 #47.3986402
-        self.lon = -121.9959840 #8.5462568
+        # Mission GPS coordinates
+        self.lat = 37.4144411 
+        self.lon = -121.9959840
         self.alt = 10.0
 
         self.current_state = State()
         self.setpoint = PoseStamped()
         self.current_position = None
-        self.reference_position = PoseStamped().pose.position  # Inizializzazione della posizione di riferimento
+        self.reference_position = PoseStamped().pose.position  # Init reference position
         self.obstacle_position = None
-        self.scostamento = 20.0  # Spostamento verso destra per evitare l'ostacolo
+        self.offset = 20.0
         self.count = 0 
 
         self.send_mission()
         self.service_check()
 
     def send_mission(self):
-        # Creazione di un waypoint per la missione
+        # Pushing waypoint
         wp = Waypoint()
         wp.frame = Waypoint.FRAME_GLOBAL_REL_ALT
         wp.command = 16  # NAV_WAYPOINT
@@ -90,8 +79,7 @@ class MissionModeNode(Node):
         wp.z_alt = self.alt
         wp.x_lat = self.lat
         wp.y_long = self.lon
-
-        # Invia il waypoint al servizio di MAVROS
+        
         wp_push_req = WaypointPush.Request()
         wp_push_req.start_index = 0
         wp_push_req.waypoints.append(wp)
@@ -99,22 +87,22 @@ class MissionModeNode(Node):
         future = self.wp_push_client.call_async(wp_push_req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() and future.result().success:
-            self.get_logger().info('Missione caricata con successo!')
-            # Imposta la modalità AUTO.MISSION dopo aver caricato la missione
+            self.get_logger().info("Mission pushed")
+            # Set mission mode after pushing coords
             self.set_auto_mission_mode()
         else:
-            self.get_logger().error('Errore nel caricamento della missione.')
+            self.get_logger().error("Error in pushing waypoint")
 
     def service_check(self):
         while not self.arming_client.wait_for_service(timeout_sec=1.0) or not self.set_mode_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().warn('Attendo i servizi...')
-        self.get_logger().info("Servizi disponibili")
+            self.get_logger().warn('Waiting for services...')
+        self.get_logger().info("Services available")
         self.arm_drone()
 
     def state_callback(self, msg):
         if msg.mode != self.current_state.mode:
             self.current_state = msg
-            self.get_logger().info(f"Stato attuale: {self.current_state.mode}")
+            self.get_logger().info(f"Current state: {self.current_state.mode}")
 
     def local_pos_callback(self, msg):
         self.current_position = msg.pose.position
@@ -128,12 +116,12 @@ class MissionModeNode(Node):
         
         if self.found_obstacle() and self.count==0:
             self.count +=1
-            self.get_logger().info("Ostacolo rilevato!")
+            self.get_logger().info("Obstacle detected!")
             self.reference_position = self.current_position
             self.change_mode("OFFBOARD")
 
-        # Imposta i nuovi setpoint di posizione basati sulla posizione di riferimento
-        self.setpoint.pose.position.x = self.reference_position.x + self.scostamento
+        # Set new position setpoints based on the reference position
+        self.setpoint.pose.position.x = self.reference_position.x + self.offset
         self.setpoint.pose.position.y = self.reference_position.y
         self.setpoint.pose.position.z = self.reference_position.z
 
@@ -153,14 +141,14 @@ class MissionModeNode(Node):
             (self.obstacle_position.z - self.current_position.z)**2
         )
         if distance < 5.0:
-            # Aggiorna la reference_position quando viene rilevato l'ostacolo
+            # Update reference_position when obstacle is detected
             self.reference_position = self.current_position  
             return True
         return False
 
 
     def publish_obstacle_position(self):
-        # Crea un messaggio di tipo PoseStamped per la posizione dell'ostacolo
+        # Create a PoseStamped message for the obstacle position
         obstacle_msg = PoseStamped()
         obstacle_msg.pose.position.x = 15.0
         obstacle_msg.pose.position.y = 30.0
@@ -171,15 +159,15 @@ class MissionModeNode(Node):
         if self.current_position is None or self.setpoint is None:
             return False
 
-        # Tolleranza per considerare il setpoint raggiunto
+        # Tolerance to consider the setpoint reached
         tolerance = 1.0
         dx = abs(self.current_position.x - self.setpoint.pose.position.x)
         dy = abs(self.current_position.y - self.setpoint.pose.position.y)
         dz = abs(self.current_position.z - self.setpoint.pose.position.z)
 
-        # Controlla se il drone è vicino abbastanza al setpoint
+        # Check if the drone is close enough to the setpoint
         if dx < tolerance and dy < tolerance and dz < tolerance:
-            self.get_logger().info("Setpoint raggiunto!")
+            self.get_logger().info("Setpoint reached!")
             return True
         return False
 
@@ -189,9 +177,9 @@ class MissionModeNode(Node):
         future = self.arming_client.call_async(req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() is not None and future.result().success:
-            self.get_logger().info('Drone armato con successo')
+            self.get_logger().info('Drone armed successfully')
         else:
-            self.get_logger().info('Impossibile armare il drone')
+            self.get_logger().info('Unable to arm the drone')
 
     def set_auto_mission_mode(self):
         set_mode_req = SetMode.Request()
@@ -199,9 +187,9 @@ class MissionModeNode(Node):
         future = self.set_mode_client.call_async(set_mode_req)
         rclpy.spin_until_future_complete(self, future)
         if future.result() and future.result().mode_sent:
-            self.get_logger().info('Modalità AUTO.MISSION impostata con successo!')
+            self.get_logger().info('AUTO.MISSION mode successfully set!')
         else:
-            self.get_logger().error('Errore nell\'impostazione della modalità AUTO.MISSION.')
+            self.get_logger().error('Error setting AUTO.MISSION mode.')
 
     def change_mode(self, mode):
         if self.set_mode_client.wait_for_service(timeout_sec=5.0):
@@ -214,12 +202,11 @@ class MissionModeNode(Node):
         try:
             response = future.result()
             if response.mode_sent:
-                self.get_logger().info(f"Modalità impostata con successo!")
+                self.get_logger().info(f"Mode successfully set!")
             else:
-                self.get_logger().warn(f"Cambio modalità fallito!")
+                self.get_logger().warn(f"Mode change failed!")
         except Exception as e:
-            self.get_logger().error(f"Errore nel cambio modalità: {e}")
-
+            self.get_logger().error(f"Error changing mode: {e}")
 
 
 def main(args=None):
