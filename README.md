@@ -68,20 +68,18 @@ cd ~/(folder_name)/src
 ```
 Now, clone the repository inside the src:
 ```
-git clone https://github.com/Andrewww00/Progetto_IIoT_provvisorio.git
+git clone https://github.com/Andrewww00/Project_PX4_IIoT.git
 ```
 Install colcon to build the workspace:
 ```
-sudo sh -c 'echo "deb [arch=amd64,arm64] http://repo.ros2.org/ubuntu/main `lsb_release -cs` main" > /etc/apt/sources.list.d/ros2-latest.list'
-curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
-sudo apt update
 sudo apt install python3-colcon-common-extensions
+sudo apt install python3-argcomplete
 ```
 Before building the workspace, add this lines to your .bashrc file. By using this you avoid sourceing the setup.bash of both ros2 distro and workspace everytime.
 ```
 source /opt/ros/humble/setup.bash
-source ~/(folder_name)/install/setup.bash
-source /usr/share/colcon_argcomplete/hook/colcon_argcomplete.bash # This line enable autocomplition colcon commands by pressing tab key.
+source ~/folder/install/setup.bash
+source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
 ```
 First, move to (folder_name) then build the workspace:
 ```
@@ -91,8 +89,8 @@ colcon build
 Once done, you can use the setup_sys.sh file to setup the env:
 ```
 cd
-chmod +x ~/(folder_name)/src/Progetto_IIoT_provvisorio/project_pkg/setup_sys.sh
-./(folder_name)/src/Progetto_IIoT_provvisorio/project_pkg/setup_sys.sh
+chmod +x ~/(folder_name)/src/Project_PX4_IIoT/project_pkg/setup_sys.sh
+./(folder_name)/src/Project_PX4_IIoT/project_pkg/setup_sys.sh
 ```
 Then run the ros2 node to start the mission:
 ```
@@ -102,9 +100,10 @@ ros2 run project_pkg mission
 # Flask version
 To run the flask version of the project, first navigate to the server folder and run the server script:
 ```
+cd ~/(folder_name)/src/Project_PX4_IIoT/project_pkg/server
 python3 flask_server.py
 ```
-Then run the modified version of mission node:
+Then, in another terminal, run the flask version:
 ```
 ros2 run project_pkg mission_flask.py
 ```
