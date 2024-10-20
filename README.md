@@ -104,7 +104,7 @@ python3 flask_server.py
 ```
 Then, in another terminal, run the flask version:
 ```
-ros2 run project_pkg mission_flask.py
+ros2 run project_pkg flask_mission
 ```
 
 
