@@ -211,7 +211,7 @@ class MissionModeNode(Node):
             self.get_logger().error('Error setting AUTO.MISSION mode.')
 
     def change_mode(self, mode):
-        if self set_mode_client.wait_for_service(timeout_sec=5.0):
+        if self.set_mode_client.wait_for_service(timeout_sec=5.0):
             req = SetMode.Request()
             req.custom_mode = mode
             future = self.set_mode_client.call_async(req)
