@@ -57,7 +57,6 @@ Then download the AppImage from [here](https://docs.qgroundcontrol.com/master/en
 Once downloaded, move the file to home directory and run:
 ```
 chmod +x ./QGroundControl.AppImage
-./QGroundControl.AppImage
 ```
 
 ### Create Folder and clone repository:
