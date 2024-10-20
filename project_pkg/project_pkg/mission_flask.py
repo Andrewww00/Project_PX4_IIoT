@@ -65,8 +65,7 @@ class MissionModeNode(Node):
         self.current_position = None
         self.reference_position = PoseStamped().pose.position
         self.obstacle_position = None
-        self.offset = 20.0
-        self.count = 0
+        self.obstacle_detected = False
 
         self.send_mission(self.lat, self.lon, self.alt)
         self.service_check()
@@ -114,34 +113,36 @@ class MissionModeNode(Node):
         if self.current_position is None or self.obstacle_position is None:
             return
 
-        if self.found_obstacle():
+        if self.found_obstacle() and not self.obstacle_detected:
+            self.obstacle_detected = True
             self.get_logger().info("Obstacle detected!")
             self.reference_position = self.current_position
 
-            # Setting OFFBOARD 
-            if self.current_state.mode != "OFFBOARD" :
+            # Set OFFBOARD mode if necessary
+            if self.current_state.mode != "OFFBOARD":
                 self.change_mode("OFFBOARD")
 
-            # Send a request to the Flask server to get new coordinates
+            # Request new coordinates
             new_x, new_y = self.request_new_coordinates(
                 self.reference_position.x, self.reference_position.y)
 
-            # Create a new setpoint with updated coordinates
+            # Create a new setpoint with the updated coordinates
             self.setpoint = PoseStamped()
             self.setpoint.pose.position.x = new_x
             self.setpoint.pose.position.y = new_y
             self.setpoint.pose.position.z = self.alt
             self.setpoint_pub.publish(self.setpoint)
         else:
-            # Publishing for maintaining OFFBOARD mode
+            # Maintain OFFBOARD mode by publishing the current setpoint
             if self.current_position is not None:
                 self.setpoint_pub.publish(self.setpoint)
 
             # Check if the drone has reached the setpoint
             if self.reached_setpoint():
-                # Switch to AUTO.MISSION mode
+                self.obstacle_detected = False  # Reset the flag
+                # Switch to AUTO.MISSION mode if necessary
                 if self.current_state.mode != "AUTO.MISSION":
-                    self.change_mode("AUTO.MISSION")
+                    self.set_auto_mission_mode()
 
     def request_new_coordinates(self, x, y):
         try:
