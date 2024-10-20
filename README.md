@@ -42,7 +42,7 @@ sudo apt install aptitude
 sudo aptitude install gazebo libgazebo11 libgazebo-dev
 ```
 
-### Install QGround Control
+### Install QGroundControl
 To install QGC:
 First run this commands:
 ```
