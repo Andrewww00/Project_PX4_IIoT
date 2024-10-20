@@ -77,7 +77,7 @@ sudo apt install python3-argcomplete
 Before building the workspace, add this lines to your .bashrc file. By using this you avoid sourceing the setup.bash of both ros2 distro and workspace everytime.
 ```
 source /opt/ros/humble/setup.bash
-source ~/folder/install/setup.bash
+source ~/(folder_name)/install/setup.bash
 source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
 ```
 First, move to (folder_name) then build the workspace:
